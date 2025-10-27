@@ -1,3 +1,0 @@
-- v4l-utils
-- opencv
-- pkgconf
