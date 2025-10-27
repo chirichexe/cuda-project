@@ -1,4 +1,4 @@
-# noisycuda
+# noisy-cuda
 
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Platform](https://img.shields.io/badge/Platform-CPU%2FCUDA-green.svg)
