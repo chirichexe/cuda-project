@@ -1,106 +1,77 @@
-# Compiler and flags
-CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -std=c99 -O2 -Iinclude
-LDFLAGS = 
-LDLIBS = -lm  # Add other libraries here if needed (e.g., -lSDL2)
+# Configuration
+BUILD_DIR := build
+SRC_DIR := src
+INC_DIR := include
+TARGET := $(BUILD_DIR)/main
 
-# Final executable name
-TARGET = main
+# Source files (extendable in the future)
+C_SOURCES := $(SRC_DIR)/main.c $(SRC_DIR)/options.c $(SRC_DIR)/cuda_runner.c
+CUDA_SOURCES := $(SRC_DIR)/cuda_kernel.cu
 
-# Directories
-SRCDIR = src
-INCDIR = include
-BUILDDIR = build
-BINDIR = bin
+# Object files
+C_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SOURCES))
+CUDA_OBJECTS := $(patsubst $(SRC_DIR)/%.cu,$(BUILD_DIR)/%.o,$(CUDA_SOURCES))
+OBJECTS := $(C_OBJECTS) $(CUDA_OBJECTS)
 
-# Sources and objects
-SOURCES = $(wildcard $(SRCDIR)/*.c)
-OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
+# Compilers and flags
+CC := gcc
+NVCC := nvcc
+CFLAGS := -I$(INC_DIR)
+NVCC_FLAGS := -I$(INC_DIR)
 
-# Default target
-all: directories $(BINDIR)/$(TARGET)
+# CUDA architecture (if specified)
+ifdef ARCH
+    NVCC_FLAGS += -arch=$(ARCH)
+endif
 
-# Create necessary directories
-directories:
-	@mkdir -p $(BUILDDIR) $(BINDIR)
+# Main target
+all: $(TARGET)
 
-# Final executable linking
-$(BINDIR)/$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
+# Build target - renamed to avoid conflict
+compile: $(TARGET)
 
-# Object file compilation
-$(BUILDDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(TARGET): $(OBJECTS) | $(BUILD_DIR)
+	$(NVCC) $^ -o $@
 
-# Clean build artifacts
+# Compile C files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) -c $< $(CFLAGS) -o $@
+
+# Compile CUDA files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu | $(BUILD_DIR)
+	$(NVCC) -c $< $(NVCC_FLAGS) -o $@
+
+# Create build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+# Clean target
 clean:
-	rm -rf $(BUILDDIR) $(BINDIR)
+	rm -rf $(BUILD_DIR)
 
-# Deep clean
-distclean: clean
-	rm -f *.o *~ core
-
-# Debug build
-debug: CFLAGS += -g -DDEBUG -O0
-debug: all
-
-# Release build (optimized)
-release: CFLAGS += -O3 -DNDEBUG
-release: all
-
-# Install target
-install: all
-	@echo "Installing to /usr/local/bin..."
-	@cp $(BINDIR)/$(TARGET) /usr/local/bin/ || echo "Installation failed - try with sudo"
-
-# Uninstall target
-uninstall:
-	rm -f /usr/local/bin/$(TARGET)
-
-# Project information
+# Info target - displays usage information
 info:
-	@echo "Sources: $(SOURCES)"
-	@echo "Objects: $(OBJECTS)"
-	@echo "Target: $(TARGET)"
+	@echo "=== Makefile Usage ==="
+	@echo ""
+	@echo "Available commands:"
+	@echo "  make           - Build the project (creates executable in $(BUILD_DIR)/)"
+	@echo "  make compile   - Build the project"
+	@echo "  make clean     - Remove build directory and all compiled files"
+	@echo "  make info      - Show this help message"
+	@echo ""
+	@echo "Optional parameters:"
+	@echo "  ARCH=sm_XX    - Specify CUDA architecture (e.g., ARCH=sm_70)"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make                      # Normal build"
+	@echo "  make ARCH=sm_70           # Build with specific CUDA architecture"
+	@echo "  make clean                # Clean build files"
+	@echo ""
+	@echo "Project structure:"
+	@echo "  Source files:    $(SRC_DIR)/"
+	@echo "  Header files:    $(INC_DIR)/"
+	@echo "  Build output:    $(BUILD_DIR)/"
+	@echo "  Final executable: $(TARGET)"
 
-# Run the program
-run: all
-	./$(BINDIR)/$(TARGET)
-
-# Valgrind memory check
-memcheck: debug
-	valgrind --leak-check=full --track-origins=yes ./$(BINDIR)/$(TARGET)
-
-# Static analysis with cppcheck
-analyze:
-	cppcheck --enable=all --inconclusive -I$(INCDIR) $(SRCDIR)
-
-# Code formatting (if you have clang-format)
-format:
-	find $(SRCDIR) $(INCDIR) -name "*.c" -o -name "*.h" | xargs clang-format -i
-
-# Dependency generation (advanced feature)
-depend:
-	$(CC) -MM -I$(INCDIR) $(SOURCES) > $(BUILDDIR)/dependencies.mk
-
-# Include dependencies if they exist
--include $(BUILDDIR)/dependencies.mk
-
-# Help target
-help:
-	@echo "Available targets:"
-	@echo "  all       - Build the project (default)"
-	@echo "  debug     - Build with debug information"
-	@echo "  release   - Build optimized for release"
-	@echo "  run       - Build and run"
-	@echo "  clean     - Remove build artifacts"
-	@echo "  distclean - Complete cleanup"
-	@echo "  memcheck  - Run with Valgrind memory checker"
-	@echo "  analyze   - Static code analysis"
-	@echo "  format    - Format source code"
-	@echo "  depend    - Generate dependencies"
-	@echo "  info      - Show project information"
-	@echo "  install   - Install the executable"
-	@echo "  uninstall - Uninstall the executable"
-
-.PHONY: all clean distclean debug release run memcheck analyze format help info install uninstall directories depend
+# Phony targets
+.PHONY: all compile clean info

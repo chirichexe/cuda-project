@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include <cuda_runner.h>
+
 int main(int argc, char **argv) {
     ProgramOptions opts;
     int r = parse_program_options(argc, argv, &opts);
@@ -57,6 +59,10 @@ int main(int argc, char **argv) {
     } else {
         fprintf(stderr, "Configuration accepted. Use --verbose for details.\n");
     }
+
+    // test run cuda
+    run_on_cuda(&opts);
+    // end test run cuda
 
     /* Delegation point -- do not implement heavy work in this translation unit.
      * Example (commented):
